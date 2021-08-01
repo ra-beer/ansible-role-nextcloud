@@ -1,0 +1,51 @@
+---
+# handlers file for nextcloud
+- name: start mariadb
+  service:
+    name: mariadb
+    state: started
+
+- name: stop mariadb
+  service:
+    name: mariadb
+    state: stopped
+
+- name: restart mariadb
+  service:
+    name: mariadb
+    state: restarted
+
+- name: start webserver
+  service:
+    name: "{{ nextcloud.webserver }}"
+    state: started
+
+- name: restart webserver
+  service:
+    name: "{{ nextcloud.webserver }}"
+    state: restarted
+
+- name: reload webserver
+  service:
+    name: "{{ nextcloud.webserver }}"
+    state: reloaded
+
+- name: start php-fpm
+  service:
+    name: php{{ php_ver }}-fpm
+    state: started
+
+- name: reload php-fpm
+  service:
+    name: php{{ php_ver }}-fpm
+    state: reloaded
+
+- name: start redis
+  service:
+    name: redis-server
+    state: started
+
+- name: restart redis
+  service:
+    name: redis-server
+    state: restarted

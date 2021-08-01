@@ -1,0 +1,53 @@
+---
+# tasks file for nextcloud
+- include: setup.yml
+
+- include: php_install.yml
+
+- include: webserver_apache.yml
+  when: nextcloud.webserver == "apache2"
+
+- include: webserver_nginx.yml
+  when: nextcloud.webserver == "nginx"
+
+- include: redis_server.yml
+
+- include: db_mariadb.yml
+  when: nextcloud.db_backend == "mariadb"
+
+- include: db_psql.yml
+  when: nextcloud.db_backend == "postgresql"
+
+- name: Check if Nextcloud is installed
+  stat: 
+    path: "{{ nextcloud.server_path }}/index.php"
+  register: nextcloud_is_installed
+
+- include: nc_download.yml
+  when: not nextcloud_is_installed.stat.exists
+
+- name: Check Nextcloud configuration exists.
+  stat: 
+    path: "{{ nextcloud.server_path }}/config/config.php"
+  register: nextcloud_conf
+
+- name: Check Nextcloud is configured
+  command: "grep -q {{ nextcloud_trusted_domain| first }} {{ nextcloud.server_path }}/config/config.php"
+  failed_when: False
+  changed_when: False
+  register: nextcloud_configured
+  when: nextcloud_conf.stat.exists
+
+- include: nc_install.yml
+  when: |
+    (not nextcloud_conf.stat.exists) or
+    (nextcloud_configured.rc is defined and nextcloud_configured.rc != 0)
+
+- name: Add indices
+  command: php occ db:add-missing-indices
+  args: 
+    chdir: "{{ nextcloud.server_path }}"
+  become_user: "{{ nextcloud.user }}"
+  become: yes
+  become_flags: "{{ ansible_become_flags | default(omit) }}"
+

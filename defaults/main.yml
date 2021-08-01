@@ -1,0 +1,74 @@
+---
+# defaults for nextcloud
+php_ver: 7.4
+php_dir: "/etc/php/7.4"
+php_bin: "php-fpm7.4"
+php_pkg_apcu: "php7.4-apcu"
+php_pkg_spe:
+  - "php7.4-bcmath"
+  - "php7.4-gmp"
+  - "php7.4-imagick"
+  - "php7.4-mbstring"
+  - "php7.4-redis"
+  - "php7.4-xml"
+  - "php7.4-zip"
+
+php_socket: "/run/php/php7.4-fpm.sock"
+
+nextcloud_trusted_domain:
+  - "{{ ansible_fqdn }}"
+  - "{{ ansible_default_ipv4.address }}"
+
+nextcloud_ipv6: false
+
+nextcloud_trusted_proxies: []
+nextcloud_disable_websrv_default_site: false
+
+nextcloud_install_redis_server: true
+nextcloud_redis_host: '/var/run/redis/redis.sock'
+nextcloud_redis_port: 0
+
+nextcloud_redis_settings:
+  - name: 'redis host'
+    value: '"{{ nextcloud_redis_host }}"'
+  - name: 'redis port'
+    value: "{{ nextcloud_redis_port }}"
+  - name: 'memcache.locking'
+    value: '\\OC\\Memcache\\Redis'
+
+nextcloud_background_cron: True
+
+nextcloud:
+  instance_name: TestNextcloud
+  user: www-data
+  group: www-data 
+  webserver: "nginx"
+
+  server_path: "/opt/nextcloud"
+  data_path: "/var/ncdata"
+  webadmin: "admin"
+  webadmin_pwd: "{{ webadmin_pwd }}" #(Security note: do not hardcode pwd!)
+  db_backend: "mariadb"
+  db_occ_backend: "mysql"
+  db_host: "127.0.0.1"
+  db_name: "nextcloud"
+  db_root_pwd: "{{ db_root_pwd }}" #(Security note: do not hardcode pwd!)
+  db_user: "ncadmin"
+  db_user_pwd: "{{ db_user_pwd }}" #(Security note: do not hardcode pwd!)
+
+## Custom nextcloud settings
+## https://docs.nextcloud.com/server/12/admin_manual/configuration_server/config_sample_php_parameters.html
+nextcloud_config_settings:
+  - name: 'overwrite.cli.url'
+    value: 'https://{{ nextcloud_trusted_domain | first }}'
+  - name: 'memcache.local'
+    value: '\\OC\\Memcache\\APCu'
+  - name: 'open_basedir'
+    value: '/dev/urandom'
+  - name: 'mysql.utf8mb4'
+    value: 'true'
+  - name: 'updater.release.channel'
+    value: 'production' # production | stable | daily | beta
+
+nextcloud_max_upload_size: 512m # in Byte or human readable size notation (g|m|k)
+

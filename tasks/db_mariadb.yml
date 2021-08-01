@@ -1,0 +1,88 @@
+---
+- name: install mariadb
+  package:
+    name: mariadb-server
+    state: present
+
+- name: Packages are installed.
+  package:
+    name:
+      - "php{{ php_ver }}-mysql"
+      - "python3-pymysql"
+    state: present
+
+#Reset MySQL root password
+- name: stop mariadb
+  systemd:
+    name: mariadb
+    state: stopped
+
+- name: set environment variables
+  shell: systemctl set-environment MYSQLD_OPTS="--skip-grant-tables"
+
+- name: start mariadb
+  systemd:
+    name: mariadb
+    state: started
+
+- name: Reset root PW
+  command: mysql -u root --execute="UPDATE mysql.user SET authentication_string = PASSWORD('{{ nextcloud.db_root_pwd }}') WHERE User = 'root' AND (Host = 'localhost' OR Host = '127.0.0.1');"
+
+- name: Flush MySQL privileges
+  command: mysql -u root --execute="FLUSH PRIVILEGES"
+
+- name: stop mariadb
+  systemd:
+    name: mariadb
+    state: stopped
+
+- name: Unset environment variables
+  shell: systemctl unset-environment MYSQLD_OPTS
+
+- name: start mariadb
+  systemd:
+    name: mariadb
+    state: started
+
+- name: Delete the anonymous user.
+  mysql_user:
+    user: ""
+    state: "absent"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    login_user: root
+    login_password: "{{ nextcloud.db_root_pwd }}"
+  ignore_errors: yes
+
+- name: Removes the MySQL test database
+  mysql_db:
+    name: test
+    state: absent
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    login_user: root
+    login_password: "{{ nextcloud.db_root_pwd }}"
+  ignore_errors: yes
+
+- name: Set mysql config option for nextcloud
+  copy:
+    src: files/mysql_nextcloud.cnf
+    dest: /etc/mysql/conf.d/nextcloud.cnf
+  notify: restart mariadb
+
+- name: Add Database
+  mysql_db:
+    name: "{{ nextcloud.db_name }}"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    login_user: root
+    login_password: "{{ nextcloud.db_root_pwd }}"
+    state: present
+
+- name: Configure the database user.
+  mysql_user:
+    name: "{{ nextcloud.db_user }}"
+    password: "{{ nextcloud.db_user_pwd }}"
+    priv: "{{ nextcloud.db_name }}.*:ALL"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    login_user: root
+    login_password: "{{ nextcloud.db_root_pwd }}"
+    state: present
+

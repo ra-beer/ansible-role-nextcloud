@@ -1,0 +1,94 @@
+---
+#########
+# Run command line installation.
+# the web server must be running by now in order to launch the installation
+- name: Trigger all pending handlers
+  meta: flush_handlers
+
+- name: Setting directory ownership & permissions for the data folder
+  file:
+    path: "{{ nextcloud.data_path }}"
+    mode: "0755"
+    recurse: yes
+    state: directory
+    owner: "{{ nextcloud.user }}"
+    group: "{{ nextcloud.group }}"
+
+- name: Set temporary permissions for command line installation.
+  file:
+    path: "{{ nextcloud.server_path }}"
+    state: directory
+    recurse: yes
+    owner: "{{ nextcloud.user }}"
+    group: "{{ nextcloud.group }}"
+
+- name: change permissions for OCC
+  file:
+    path: "{{ nextcloud.server_path }}/occ"
+    mode: "0755"
+    owner: "{{ nextcloud.user }}"
+    group: "{{ nextcloud.group }}"
+
+- name: Run occ installation command
+  become_user: "{{ nextcloud.user }}"
+  become_flags: "{{ ansible_become_flags | default(omit) }}"
+  become: yes
+  command: >
+      php occ maintenance:install
+      --database={{ nextcloud.db_occ_backend }}
+      --database-host={{ nextcloud.db_host }}
+      --database-name={{ nextcloud.db_name }}
+      --database-user={{ nextcloud.db_user }}
+      --database-pass={{ nextcloud.db_user_pwd }}
+      --admin-user={{ nextcloud.webadmin }}
+      --admin-pass={{ nextcloud.webadmin_pwd }}
+      --data-dir={{ nextcloud.data_path }}
+  args:
+    chdir: "{{ nextcloud.server_path }}"
+    creates: "{{ nextcloud.server_path }}/config/config.php"
+  notify: reload webserver
+
+- name: Set Trusted Domains
+  become_user: "{{ nextcloud.user }}"
+  become_flags: "{{ ansible_become_flags | default(omit) }}"
+  become: yes
+  command: "php occ config:system:set trusted_domains {{ item.0 }} --value={{ item.1 | ipwrap }}"
+  args:
+    chdir: "{{ nextcloud.server_path }}"
+  with_indexed_items: "{{ nextcloud_trusted_domain }}"
+  changed_when: true
+
+- name: Set Trusted Proxies
+  become_user: "{{ nextcloud.user }}"
+  become_flags: "{{ ansible_become_flags | default(omit) }}"
+  become: yes
+  command: "php occ config:system:set trusted_proxies {{ item.0 }} --value={{ item.1 }}"
+  args:
+    chdir: "{{ nextcloud.server_path }}"
+  with_indexed_items: "{{ nextcloud_trusted_proxies }}"
+  changed_when: true
+
+- name: Set Nextcloud settings in config.php
+  become_user: "{{ nextcloud.user }}"
+  become_flags: "{{ ansible_become_flags | default(omit) }}"
+  become: yes
+  command: "php occ config:system:set {{ item.name }} --value={{ item.value }}"
+  args:
+    chdir: "{{ nextcloud.server_path }}"
+  loop: "{{ nextcloud_config_settings }}"
+  changed_when: true
+
+- name: Set Redis Server
+  become_user: "{{ nextcloud.user }}"
+  become_flags: "{{ ansible_become_flags | default(omit) }}"
+  become: yes
+  command: "php occ config:system:set {{ item.name }} --value={{ item.value }}"
+  args:
+    chdir: "{{ nextcloud.server_path }}"
+  loop: "{{ nextcloud_redis_settings }}"
+  when: (nextcloud_install_redis_server | bool)
+
+- name: Set Custom Mimetype
+  copy:
+    dest: "{{ nextcloud.server_path }}/config/mimetypemapping.json"
+    src: files/nextcloud_custom_mimetypemapping.json

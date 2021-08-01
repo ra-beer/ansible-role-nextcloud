@@ -1,0 +1,42 @@
+---
+- name: Required and recommended packages are installed.
+  package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - "{{ nextcloud.webserver }}"
+    - smbclient
+    - "php{{ php_ver }}-gd"
+    - "php{{ php_ver }}-ldap"
+    - "php{{ php_ver }}-imap"
+    - "php{{ php_ver }}-json"
+    - "php{{ php_ver }}-curl"
+    - "php{{ php_ver }}-intl"
+    - "php{{ php_ver }}-apcu"
+  notify:
+    - start webserver
+
+- name: Apache Required package is installed.
+  package:
+    name: "libapache2-mod-php{{ php_ver }}"
+    state: present
+  when: nextcloud.webserver == "apache2"
+  notify:
+    - start webserver
+
+- name: NGINX Required package is installed.
+  package:
+    name: "php{{ php_ver }}-fpm"
+    state: present
+  when: nextcloud.webserver == "nginx"
+  notify:
+    - start webserver
+    - start php-fpm
+
+- name: enable apcu
+  lineinfile:
+    path: /etc/php/7.4/fpm/conf.d/20-apcu.ini
+    line: "{{ item }}"
+  loop:
+    - "apc.enable_cli=1"
+    - "apc.enabled=1"

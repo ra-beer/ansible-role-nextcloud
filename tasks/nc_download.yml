@@ -1,0 +1,24 @@
+---
+- name: download the latest version
+  get_url:
+    url: "https://download.nextcloud.com/server/releases/latest.tar.bz2"
+    dest: "{{ nextcloud.server_path }}/latest.tar.bz2"
+    owner: "{{ nextcloud.user }}"
+    group: "{{ nextcloud.group }}"
+
+- name: extract the nextcloud server files
+  unarchive:
+    copy: no
+    src: "{{ nextcloud.server_path }}/latest.tar.bz2"
+    dest: "{{ nextcloud.server_path }}"
+    owner: "{{ nextcloud.user }}"
+    group: "{{ nextcloud.group }}"
+
+- name: remove archive files
+  file:
+    path: "{{ nextcloud.server_path }}/latest.tar.bz2"
+    state: absent
+
+- name: move all files one directory up
+  shell: "mv {{ nextcloud.server_path }}/nextcloud/* {{ nextcloud.server_path }}"
+  

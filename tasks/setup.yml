@@ -1,0 +1,24 @@
+---
+- name: create nextcloud group
+  group:
+    state: present
+    name: "{{ nextcloud.group }}"
+    system: yes
+
+- name: create nextcloud user
+  user:
+    state: present
+    name: "{{ nextcloud.user }}"
+    group: "{{ nextcloud.group }}"
+
+# create install directories
+- name: create nextcloud.server_path
+  file:
+    state: directory
+    path: "{{ nextcloud.server_path }}"
+    owner: "{{ nextcloud.user }}"
+    group: "{{ nextcloud.group }}"
+
+- name: update apt cache
+  apt:
+    update_cache: true
